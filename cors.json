@@ -1,0 +1,17 @@
+{
+  "CORSRules": [
+    {
+      "AllowedOrigins": ["*", "http://*", "https://*"],
+      "AllowedHeaders": ["*"],
+      "AllowedMethods": ["GET", "HEAD"],
+      "MaxAgeSeconds": 3000,
+      "ExposeHeaders": [
+        "Accept-Ranges",
+        "Content-Range",
+        "Content-Encoding",
+        "Content-Length",
+        "Access-Control-Allow-Origin"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+event-rule.json
+function.json
+.envrc
+.ipynb_checkpoints
+__pycache__/
+.python-version

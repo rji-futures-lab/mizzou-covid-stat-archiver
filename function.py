@@ -2,7 +2,6 @@ import csv
 from datetime import datetime
 from operator import itemgetter
 import os
-import re
 import boto3
 from bs4 import BeautifulSoup
 import requests
@@ -10,10 +9,7 @@ from consts import DETAILS_PATTERN
 
 
 S3_CLIENT = boto3.client('s3')
-S3_DEFAULT_PARAMS = {
-    'Bucket': os.getenv('PROJECT_NAME'),
-    'Key': 'data.csv',
-}
+RECORDED_AT = datetime.now()
 
 
 class Pipe:
@@ -22,7 +18,7 @@ class Pipe:
         self.value = self.value + text
 
 
-def get_html():
+def get_current_html():
     url = "https://renewal.missouri.edu/student-cases/"
     r = requests.get(url)
     r.raise_for_status()
@@ -30,19 +26,34 @@ def get_html():
     return r.content
 
 
-def format_number(number_str):
-    if "," in number_str:
-        cleaned = number_str.replace(",", "")
-        formatted = int(cleaned)
-    elif "%" in number_str:
-        cleaned = number_str \
-            .replace("%", "") \
-            .strip()
-        formatted = float(cleaned)
-    else:
-        formatted = int(number_str)
+def get_cached_html():
+    params = {
+        'Bucket': os.getenv('PROJECT_NAME'),
+        'Key': 'cache/latest.html'
+    }
+    response = S3_CLIENT.get_object(**params)
 
-    return formatted
+    return response['Body'].read()
+
+
+def write_to_s3(key, content, content_type):
+    params = {
+        'Bucket': os.getenv('PROJECT_NAME'),
+        'ACL': 'public-read',
+        'Key': key,
+        'Body': content,
+        'ContentType': f"{content_type}; charset=UTF-8"
+    }
+    return S3_CLIENT.put_object(**params)
+
+
+def cache_html(content):
+    write_to_s3(
+        'cache/latest.html', content, 'text/html'
+        )
+    write_to_s3(
+        f'cache/{RECORDED_AT}.html', content, 'text/html'
+        )
 
 
 def get_number(div):
@@ -80,7 +91,7 @@ def parse_details(details):
 
 
 def parse_html(content):
-    section = BeautifulSoup(content, "html.parser") \
+    section = BeautifulSoup(content, 'html.parser') \
         .find('section', class_="renew-student-numbers")
     
     numbers_divs = section \
@@ -95,13 +106,20 @@ def parse_html(content):
 
     data = {**numbers_data, **details_data}
 
+    data['recorded_at'] = RECORDED_AT
+
     return data
 
 
 def get_archived_data():
-    response = S3_CLIENT.get_object(**S3_DEFAULT_PARAMS)
+    params = {
+        'Bucket': os.getenv('PROJECT_NAME'),
+        'Key': 'data.csv'
+    }
+    response = S3_CLIENT.get_object(**params)
     
     lines = [
+        # check if needed
         l.decode('utf-8') for l in response['Body'].iter_lines()
         ]
 
@@ -122,32 +140,31 @@ def archive_data(data):
     for row in data:
         writer.writerow(row)
 
-    params = {
-        'ACL': 'public-read',
-        'Body': pipe.value,
-    }
-
-    return S3_CLIENT.put_object(**S3_DEFAULT_PARAMS, **params)
+    return write_to_s3('data.csv', pipe.value, 'text/csv')
 
 
 def main():
-    content = get_html()
-    current_stats = parse_html(content)
+    current_html = get_current_html()
     
     try:
-        archived_data = get_archived_data()
+        cached_html = get_cached_html()
     except S3_CLIENT.exceptions.NoSuchKey:
-        current_stats['recorded_at'] = datetime.now()
-        archive_data([current_stats])
+        has_diffs = True
     else:
-        last_stats = archived_data[0]
-        del last_stats['recorded_at']
+        has_diffs = current_html != cached_html
+    
+    if has_diffs:
+        cache_html(current_html)
+        
+        try:
+            archived_data = get_archived_data()
+        except S3_CLIENT.exceptions.NoSuchKey:
+            data = [parse_html(current_html)]
+        else:
+            data = [parse_html(current_html)] + archived_data
 
-        if current_stats != last_stats:
-            current_stats['recorded_at'] = datetime.now()
-            new_data = [current_stats] + archived_data
-            archive_data(new_data)
-            # notify
+        archive_data(data)
+        # notify
 
 
 def lambda_handler(event, context):

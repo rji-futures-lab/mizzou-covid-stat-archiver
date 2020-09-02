@@ -2,14 +2,17 @@ import csv
 from datetime import datetime
 from operator import itemgetter
 import os
+from time import sleep
 import boto3
 from bs4 import BeautifulSoup
+from slack import WebClient
 import requests
-from consts import DETAILS_PATTERN
+from consts import DETAILS_PATTERN, TARGET_URL
 
 
 S3_CLIENT = boto3.client('s3')
 RECORDED_AT = datetime.now()
+PROJECT_NAME = os.getenv('PROJECT_NAME')
 
 
 class Pipe:
@@ -19,8 +22,7 @@ class Pipe:
 
 
 def get_current_html():
-    url = "https://renewal.missouri.edu/student-cases/"
-    r = requests.get(url)
+    r = requests.get(TARGET_URL)
     r.raise_for_status()
 
     return r.content
@@ -28,7 +30,7 @@ def get_current_html():
 
 def get_cached_html():
     params = {
-        'Bucket': os.getenv('PROJECT_NAME'),
+        'Bucket': PROJECT_NAME,
         'Key': 'cache/latest.html'
     }
     response = S3_CLIENT.get_object(**params)
@@ -38,7 +40,7 @@ def get_cached_html():
 
 def write_to_s3(key, content, content_type):
     params = {
-        'Bucket': os.getenv('PROJECT_NAME'),
+        'Bucket': PROJECT_NAME,
         'ACL': 'public-read',
         'Key': key,
         'Body': content,
@@ -113,7 +115,7 @@ def parse_html(content):
 
 def get_archived_data():
     params = {
-        'Bucket': os.getenv('PROJECT_NAME'),
+        'Bucket': PROJECT_NAME,
         'Key': 'data.csv'
     }
     response = S3_CLIENT.get_object(**params)
@@ -143,6 +145,18 @@ def archive_data(data):
     return write_to_s3('data.csv', pipe.value, 'text/csv')
 
 
+def notify():
+    slack_client = WebClient(token=os.getenv('SLACK_BOT_TOKEN'))
+    csv_url = f"https://{PROJECT_NAME}.s3.{S3_CLIENT.meta.region_name}.amazonaws.com/data.csv"
+    text = f"Mizzou just dropped new Covid stats. Download the archived data 👉 {csv_url}."
+    params = {
+        'channel': "#mizzoucollab",
+        'text': text
+    }
+
+    return slack_client.chat_postMessage(**params)
+
+
 def main():
     current_html = get_current_html()
     
@@ -164,7 +178,7 @@ def main():
             data = [parse_html(current_html)] + archived_data
 
         archive_data(data)
-        # notify
+        notify()
 
 
 def lambda_handler(event, context):

@@ -6,6 +6,6 @@ cd package
 zip -r9 ${OLDPWD}/package.zip .
 cd ${OLDPWD}
 zip -g package.zip function.py
-zip -g package.zip consts.py
+zip -g package.zip regex.py
 
 rm -rf package

@@ -7,7 +7,10 @@ import boto3
 from bs4 import BeautifulSoup
 from slack import WebClient
 import requests
-from consts import DETAILS_PATTERN, TARGET_URL
+from regex import (
+    CURRENT_DETAILS_PATTERN,
+    PRE_2020_09_02_DETAILS_PATTERN,
+)
 
 
 S3_CLIENT = boto3.client('s3')
@@ -22,16 +25,16 @@ class Pipe:
 
 
 def get_current_html():
-    r = requests.get(TARGET_URL)
+    r = requests.get("https://renewal.missouri.edu/student-cases/")
     r.raise_for_status()
 
     return r.content
 
 
-def get_cached_html():
+def get_cached_html(key='cache/latest.html'):
     params = {
         'Bucket': PROJECT_NAME,
-        'Key': 'cache/latest.html'
+        'Key': key
     }
     response = S3_CLIENT.get_object(**params)
 
@@ -82,17 +85,24 @@ def get_details(section):
 
 
 def parse_details(details):
-    match = DETAILS_PATTERN.match(details)
 
-    if not match:
-        raise Exception
+    current_keys = {k: None for k in CURRENT_DETAILS_PATTERN.groupindex.keys()}
+
+    match = (
+        CURRENT_DETAILS_PATTERN.match(details) or
+        PRE_2020_09_02_DETAILS_PATTERN.match(details)
+    )
+
+    if match:    
+        parsed = {**current_keys, **match.groupdict()}
     else:
-        parsed = match.groupdict()
-    
+        # TODO: log that parse failed, will need to examine patterns
+        parsed = current_keys
+
     return parsed
 
 
-def parse_html(content):
+def parse_html(content, recorded_at=RECORDED_AT):
     section = BeautifulSoup(content, 'html.parser') \
         .find('section', class_="renew-student-numbers")
     
@@ -108,7 +118,7 @@ def parse_html(content):
 
     data = {**numbers_data, **details_data}
 
-    data['recorded_at'] = RECORDED_AT
+    data['recorded_at'] = recorded_at
 
     return data
 

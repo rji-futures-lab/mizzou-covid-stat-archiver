@@ -9,6 +9,7 @@ from slack import WebClient
 import requests
 from regex import (
     CURRENT_DETAILS_PATTERN,
+    PRE_2020_09_08_DETAILS_PATTERN,
     PRE_2020_09_04_DETAILS_PATTERN,
     PRE_2020_09_02_DETAILS_PATTERN,
 )
@@ -90,9 +91,10 @@ def parse_details(details):
     current_keys = {k: None for k in CURRENT_DETAILS_PATTERN.groupindex.keys()}
 
     match = (
-        CURRENT_DETAILS_PATTERN.match(details) or
-        PRE_2020_09_04_DETAILS_PATTERN.match(details) or
-        PRE_2020_09_02_DETAILS_PATTERN.match(details)
+        CURRENT_DETAILS_PATTERN.match(details)
+     or PRE_2020_09_08_DETAILS_PATTERN.match(details)
+     or PRE_2020_09_04_DETAILS_PATTERN.match(details)
+     or PRE_2020_09_02_DETAILS_PATTERN.match(details)
     )
 
     if match:    

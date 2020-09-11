@@ -85,6 +85,11 @@ def get_details(section):
         .text \
         .strip()
 
+def get_row_number(row):
+    return row \
+        .text \
+        .strip()
+
 
 def parse_details(details):
 
@@ -105,6 +110,22 @@ def parse_details(details):
 
     return parsed
 
+def parse_faculty_staff_table(content):
+    faculty_staff_table = BeautifulSoup(content, 'html.parser') \
+        .find('table', class_='table table-sm')
+
+    faculty_staff_nums = faculty_staff_table \
+        .find_all('td')
+
+    faculty_staff_data = {
+        'active_faculty_cases': get_row_number(faculty_staff_nums[0]),
+        'recovered_faculty_cases': get_row_number(faculty_staff_nums[1]),
+        'active_staff_cases': get_row_number(faculty_staff_nums[2]),
+        'recovered_staff_cases': get_row_number(faculty_staff_nums[3])
+        }
+
+    return faculty_staff_data
+
 
 def parse_html(content, recorded_at=RECORDED_AT):
     section = BeautifulSoup(content, 'html.parser') \
@@ -120,7 +141,9 @@ def parse_html(content, recorded_at=RECORDED_AT):
     details = get_details(section)
     details_data = parse_details(details)
 
-    data = {**numbers_data, **details_data}
+    faculty_staff_data = parse_faculty_staff_table(content)
+
+    data = {**numbers_data, **details_data, **faculty_staff_data}
 
     data['recorded_at'] = recorded_at
 

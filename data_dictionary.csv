@@ -1,0 +1,14 @@
+name,data type,description
+active_student_cases,int,number of active student cases
+percent_of_student_body,string,active student cases as a percent of the overall student body
+recovered,int,number of recovered students
+student_cases_change_since,string,date new student cases last reported
+student_cases_change,string,number of new active student cases
+student_cases_change_boone_county,int,number of new cumulative student cases (recovered + active) 
+student_cases_boone_county,int,number of cumulative student cases (recovered + active)
+last_update_date,string,date dashboard was last updated
+last_update_time,string,time dashboard was last updated
+active_faculty_cases,int,number of active faculty cases
+recovered_faculty_cases,int,number of recovered faculty cases
+active_staff_cases,int,number of active staff cases
+recovered_staff_cases,int,number of recovered staff cases

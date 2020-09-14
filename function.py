@@ -228,12 +228,17 @@ def main():
             archived_data = get_archived_data()
         except S3_CLIENT.exceptions.NoSuchKey:
             data = [parse_html(current_html)]
+            new_data = True
         else:
             if compare_archived(current_html, archived_data):
+                new_data = True
                 data = [parse_html(current_html)] + archived_data
+            else:
+                new_data = False
 
-        archive_data(data)
-        notify()
+        if new_data:
+            archive_data(data)
+            notify()
 
 
 def lambda_handler(event, context):

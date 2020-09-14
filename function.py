@@ -181,6 +181,20 @@ def archive_data(data):
 
     return write_to_s3('data.csv', pipe.value, 'text/csv')
 
+def compare_archived(current_html, archived_data):
+    current_data = parse_html(current_html)
+    has_diffs = False
+
+    most_recent = archived_data[0].items()
+    for key, value in most_recent:
+        if key == 'recorded_at':
+            pass
+        elif value != current_data[key]:
+            has_diffs == True
+            #print('Archived ' + key + ': ' + value + ', Current ' + key + ': ' + current_data[key])
+
+    return has_diffs
+
 
 def notify():
     slack_client = WebClient(token=os.getenv('SLACK_BOT_TOKEN'))
@@ -197,6 +211,9 @@ def notify():
 def main():
     current_html = get_current_html()
     
+    for key, value in archived_data[0]:
+        print(key + ": " + value)
+    
     try:
         cached_html = get_cached_html()
     except S3_CLIENT.exceptions.NoSuchKey:
@@ -212,7 +229,8 @@ def main():
         except S3_CLIENT.exceptions.NoSuchKey:
             data = [parse_html(current_html)]
         else:
-            data = [parse_html(current_html)] + archived_data
+            if compare_archived(current_html, archived_data):
+                data = [parse_html(current_html)] + archived_data
 
         archive_data(data)
         notify()

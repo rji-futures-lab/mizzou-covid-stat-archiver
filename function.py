@@ -8,10 +8,10 @@ from bs4 import BeautifulSoup
 from slack import WebClient
 import requests
 from regex import (
-    CURRENT_DETAILS_PATTERN,
-    PRE_2020_09_08_DETAILS_PATTERN,
-    PRE_2020_09_04_DETAILS_PATTERN,
-    PRE_2020_09_02_DETAILS_PATTERN,
+    CURRENT_STUDENT_FOOTNOTE_PATTERN,
+    PRE_2020_09_08_STUDENT_FOOTNOTE_PATTERN,
+    PRE_2020_09_04_STUDENT_FOOTNOTE_PATTERN,
+    PRE_2020_09_02_STUDENT_FOOTNOTE_PATTERN,
 )
 
 
@@ -63,43 +63,46 @@ def cache_html(content):
         )
 
 
-def get_number(div):
+def format_label(label):
+    return label \
+        .replace(" ", "_") \
+        .lower() \
+        .strip()
+
+
+def get_student_stat(div):
     return div \
         .find('p', class_="renew-case-numbers-card__number") \
         .text \
         .strip()
 
 
-def get_number_title(div):
-    return div \
+def get_student_stat_title(div):
+    title = div \
         .find('p', class_="renew-case-numbers-card__title") \
-        .text \
-        .strip() \
-        .lower() \
-        .replace(" ", "_")
+        .text
+
+    return format_label(title)
 
 
-def get_details(section):
+def get_student_footnote(section):
     return section \
         .find("small", class_="renew-student-numbers__detail") \
         .text \
         .strip()
 
-def get_row_number(row):
-    return row \
-        .text \
-        .strip()
 
+def parse_student_footnote(details):
 
-def parse_details(details):
-
-    current_keys = {k: None for k in CURRENT_DETAILS_PATTERN.groupindex.keys()}
+    current_keys = {
+        k: None for k in CURRENT_STUDENT_FOOTNOTE_PATTERN.groupindex.keys()
+        }
 
     match = (
-        CURRENT_DETAILS_PATTERN.match(details)
-     or PRE_2020_09_08_DETAILS_PATTERN.match(details)
-     or PRE_2020_09_04_DETAILS_PATTERN.match(details)
-     or PRE_2020_09_02_DETAILS_PATTERN.match(details)
+        CURRENT_STUDENT_FOOTNOTE_PATTERN.match(details)
+     or PRE_2020_09_08_STUDENT_FOOTNOTE_PATTERN.match(details)
+     or PRE_2020_09_04_STUDENT_FOOTNOTE_PATTERN.match(details)
+     or PRE_2020_09_02_STUDENT_FOOTNOTE_PATTERN.match(details)
     )
 
     if match:    
@@ -110,40 +113,67 @@ def parse_details(details):
 
     return parsed
 
-def parse_faculty_staff_table(content):
-    faculty_staff_table = BeautifulSoup(content, 'html.parser') \
-        .find('table', class_='table table-sm')
 
-    faculty_staff_nums = faculty_staff_table \
-        .find_all('td')
+def parse_student_section(section):
+    stat_divs = section.find_all('div', class_='renew-case-numbers-card')
 
-    faculty_staff_data = {
-        'active_faculty_cases': get_row_number(faculty_staff_nums[0]),
-        'recovered_faculty_cases': get_row_number(faculty_staff_nums[1]),
-        'active_staff_cases': get_row_number(faculty_staff_nums[2]),
-        'recovered_staff_cases': get_row_number(faculty_staff_nums[3])
+    stats_data = {
+        get_student_stat_title(div): get_student_stat(div) for div in stat_divs
         }
 
-    return faculty_staff_data
+    footnote = get_student_footnote(section)
+    footnote_data = parse_student_footnote(footnote)
+
+    data = {**stats_data, **footnote_data}
+
+    return data
+
+
+def parse_table_row(row):
+    row_label = format_label(row.find('th').text)
+
+    numbers = [td.text.strip() for td in row.find_all('td')]
+
+    return row_label, numbers
+
+
+def parse_faculty_staff_table(table):
+    table_headers = table \
+        .find('thead') \
+        .find_all('th')
+
+    column_labels = [
+        format_label(th.text) for th in table_headers if len(th.text) > 0
+        ]
+
+    table_rows = table \
+        .find('tbody') \
+        .find_all('tr')
+
+    data = {}
+
+    for tr in table_rows:
+        row_label, numbers = parse_table_row(tr)
+
+        zipped = zip([f"{row_label}_{cl}" for cl in column_labels], numbers)
+
+        for k, v in zipped:
+            data[k] = v
+
+    return data
 
 
 def parse_html(content, recorded_at=RECORDED_AT):
-    section = BeautifulSoup(content, 'html.parser') \
-        .find('section', class_="renew-student-numbers")
     
-    numbers_divs = section \
-        .find_all('div', class_='renew-case-numbers-card')
+    soup = BeautifulSoup(content, 'html.parser')
 
-    numbers_data = {
-        get_number_title(div): get_number(div) for div in numbers_divs
-        }
+    student_section = soup.find('section', class_="renew-student-numbers")
+    faculty_staff_table = soup.find('table', class_='table table-sm')
+    
+    student_data = parse_student_section(student_section)
+    faculty_staff_data = parse_faculty_staff_table(faculty_staff_table)
 
-    details = get_details(section)
-    details_data = parse_details(details)
-
-    faculty_staff_data = parse_faculty_staff_table(content)
-
-    data = {**numbers_data, **details_data, **faculty_staff_data}
+    data = {**student_data, **faculty_staff_data}
 
     data['recorded_at'] = recorded_at
 

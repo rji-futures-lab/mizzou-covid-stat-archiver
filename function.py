@@ -7,12 +7,7 @@ import boto3
 from bs4 import BeautifulSoup
 from slack import WebClient
 import requests
-from regex import (
-    CURRENT_STUDENT_FOOTNOTE_PATTERN,
-    PRE_2020_09_08_STUDENT_FOOTNOTE_PATTERN,
-    PRE_2020_09_04_STUDENT_FOOTNOTE_PATTERN,
-    PRE_2020_09_02_STUDENT_FOOTNOTE_PATTERN,
-)
+from student_footnote import parse as parse_student_footnote
 
 
 S3_CLIENT = boto3.client('s3')
@@ -90,28 +85,6 @@ def get_student_footnote(section):
         .find("small", class_="renew-student-numbers__detail") \
         .text \
         .strip()
-
-
-def parse_student_footnote(details):
-
-    current_keys = {
-        k: None for k in CURRENT_STUDENT_FOOTNOTE_PATTERN.groupindex.keys()
-        }
-
-    match = (
-        CURRENT_STUDENT_FOOTNOTE_PATTERN.match(details)
-     or PRE_2020_09_08_STUDENT_FOOTNOTE_PATTERN.match(details)
-     or PRE_2020_09_04_STUDENT_FOOTNOTE_PATTERN.match(details)
-     or PRE_2020_09_02_STUDENT_FOOTNOTE_PATTERN.match(details)
-    )
-
-    if match:    
-        parsed = {**current_keys, **match.groupdict()}
-    else:
-        # TODO: log that parse failed, will need to examine patterns
-        parsed = current_keys
-
-    return parsed
 
 
 def parse_student_section(section):

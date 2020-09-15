@@ -20,6 +20,8 @@ def get_cached_keys():
 
 def main():
     data = []
+
+    unique_rows = set()
     
     for key in get_cached_keys():
         html = get_cached_html(key)
@@ -28,7 +30,12 @@ def main():
             .rstrip('.html')
 
         parsed = parse_html(html, recorded_at=recorded_at)
-        data.append(parsed)
+
+        values = '|'.join([str(v) for k, v in parsed.items() if k != 'recorded_at'])
+
+        if values not in unique_rows:
+            unique_rows.add(values)
+            data.append(parsed)
 
     archive_data(data)
 

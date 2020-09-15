@@ -163,6 +163,26 @@ def parse_faculty_staff_table(table):
     return data
 
 
+def fill_faculty_staff_data(data):
+    if 'faculty_active_positive_cases' not in data:
+        fa = int(data['faculty_cumulative_positive_cases']) - int(data['faculty_recovered'])
+        data['faculty_active_positive_cases'] = str(fa)
+
+    if 'staff_active_positive_cases' not in data:
+        sa = int(data['staff_cumulative_positive_cases']) - int(data['staff_recovered'])
+        data['staff_active_positive_cases'] = str(sa)
+
+    if 'faculty_cumulative_positive_cases' not in data:
+        fc = int(data['faculty_active_positive_cases']) + int(data['faculty_recovered'])
+        data['faculty_cumulative_positive_cases'] = str(fc)
+    
+    if 'staff_cumulative_positive_cases' not in data:
+        sc = int(data['staff_active_positive_cases']) + int(data['staff_recovered'])
+        data['staff_cumulative_positive_cases'] = str(sc)
+
+    return data
+
+
 def parse_html(content, recorded_at=RECORDED_AT):
     
     soup = BeautifulSoup(content, 'html.parser')
@@ -173,7 +193,9 @@ def parse_html(content, recorded_at=RECORDED_AT):
     student_data = parse_student_section(student_section)
     faculty_staff_data = parse_faculty_staff_table(faculty_staff_table)
 
-    data = {**student_data, **faculty_staff_data}
+    faculty_staff_data_filled = fill_faculty_staff_data(faculty_staff_data)
+
+    data = {**student_data, **faculty_staff_data_filled}
 
     data['recorded_at'] = recorded_at
 
@@ -211,19 +233,12 @@ def archive_data(data):
 
     return write_to_s3('data.csv', pipe.value, 'text/csv')
 
-def compare_archived(current_html, archived_data):
-    current_data = parse_html(current_html)
-    has_diffs = False
 
-    most_recent = archived_data[0].items()
-    for key, value in most_recent:
-        if key == 'recorded_at':
-            pass
-        elif value != current_data[key]:
-            has_diffs == True
-            #print('Archived ' + key + ': ' + value + ', Current ' + key + ': ' + current_data[key])
+def compare_archived(parsed_data, archived_data):
+    parsed_data.pop('recorded_at')
+    archived_data.pop('recorded_at')
 
-    return has_diffs
+    return parsed_data == archived_data
 
 
 def notify():
@@ -241,9 +256,6 @@ def notify():
 def main():
     current_html = get_current_html()
     
-    for key, value in archived_data[0]:
-        print(key + ": " + value)
-    
     try:
         cached_html = get_cached_html()
     except S3_CLIENT.exceptions.NoSuchKey:
@@ -253,18 +265,20 @@ def main():
     
     if has_diffs:
         cache_html(current_html)
+
+        parsed_data = [parse_html(current_html)]
         
         try:
             archived_data = get_archived_data()
-        except S3_CLIENT.exceptions.NoSuchKey:
+        except S3_CLIENT.exceptions.NoSuchKey:    
+            has_new_data = True
             data = [parse_html(current_html)]
-            new_data = True
         else:
-            if compare_archived(current_html, archived_data):
-                new_data = True
+            if compare_archived(parsed_data, archived_data):
+                has_new_data = True
                 data = [parse_html(current_html)] + archived_data
             else:
-                new_data = False
+                has_new_data = False
 
         if new_data:
             archive_data(data)

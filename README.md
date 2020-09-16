@@ -80,4 +80,9 @@ python re-parse.py
 
 Which will overwrite data.csv.
 
+When debugging code in the entire process, you might also need to remove the two most recent files in the cache:
+
+```sh
+python prune_cache.py
+```
 

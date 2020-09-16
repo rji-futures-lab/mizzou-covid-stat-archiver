@@ -1,0 +1,121 @@
+---
+- active_student_cases:
+  data_type: string
+  meaning: Total MU students who have tested positive for COVID-19 who have not yet recovered.
+  provenance:
+    - MU subtracts `student_cases_boone_county` from `recovered`.
+    - Our scraper extracts the text of the first `<div>` with a `renew-case-numbers-card__number` class value.
+  caveats:
+    - A case will not be included if the student was tested outside of Boone County or if the case was otherwise note reported to Columbia/Boone County Health and Human Services.
+
+- percent_of_student_body:
+  data_type: string
+  meaning: Proportion of students on campus who are currently 
+  provenance:
+    - MU divides `active_student_cases` by the number of on-campus students.
+    - Our scraper extracts the text of the second `<div>` with a `renew-case-numbers-card__number` class value.
+  caveats:
+
+- recovered:
+  data_type: string
+  meaning: Total MU students who previous tested positive for COVID-19, but now...?
+  provenance:
+    - Our scraper extracts the text of the third `<div>` with a `renew-case-numbers-card__number` class value.
+  caveats:
+
+- student_cases_change_since:
+  data_type: string
+  meaning: 
+  provenance:
+    - Our scraper extracts this value from the text of the footnote below the top line stats.
+  caveats:
+
+- student_cases_change:
+  data_type: string
+  meaning: 
+  provenance:
+    - Our scraper extracts this value from the text of the footnote below the top line stats.
+  caveats:
+
+- student_cases_change_boone_county:
+  data_type: string
+  meaning: 
+  provenance:
+    - MU subtracts the previously reported value of `student_cases_boone_county` from current value. 
+    - Our scraper extracts this value from the text of the footnote below the top line stats.
+  caveats:
+
+- student_cases_boone_county:
+  data_type: string
+  meaning: Total COVID-19 cases where the person was a student reported since Aug. 19, 2020, by Columbia/Boone County Health and Human Services to MU.
+  provenance:
+    - (???)
+    - Columbia/Boone County Health and Human Services reports this number to MU.
+    - Our scraper extracts this value from the text of the footnote below the top line stats.
+  caveats:
+
+- last_update_date:
+  data_type: string
+  meaning: 
+  provenance:
+    - Our scraper extracts this value from the text of the footnote below the top line stats.
+  caveats:
+
+- last_update_time:
+  data_type: string
+  meaning: 
+  provenance:
+    - Our scraper extracts this value from the text of the footnote below the top line stats.
+  caveats:
+
+- faculty_active_positive_cases:
+  data_type: string
+  meaning: 
+  provenance:
+    - (???)
+  caveats:
+
+- faculty_recovered:
+  data_type: string
+  meaning: 
+  provenance:
+    - (???)
+  caveats:
+
+- staff_active_positive_cases:
+  data_type: string
+  meaning: 
+  provenance:
+    - (???)
+  caveats:
+
+- staff_recovered:
+  data_type: string
+  meaning: 
+  provenance:
+    - (???)
+  caveats:
+
+- faculty_cumulative_positive_cases:
+  data_type: string
+  meaning: 
+  provenance:
+  caveats:
+    - (???)
+
+- staff_cumulative_positive_cases:
+  data_type: string
+  meaning: 
+  provenance:
+  caveats:
+    - (???)
+
+- recorded_at:
+  data_type: string
+  meaning: The date and time that these values were archived by our scraper.
+  provenance:
+    - Our scraper appends this value to the data before archiving it.
+  caveats:
+    - (???)
+
+...

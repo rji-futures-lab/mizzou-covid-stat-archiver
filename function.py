@@ -207,11 +207,11 @@ def archive_data(data):
     return write_to_s3('data.csv', pipe.value, 'text/csv')
 
 
-def compare_archived(parsed_data, archived_data):
-    parsed_data.pop('recorded_at')
-    archived_data.pop('recorded_at')
+def has_new_data(parsed_data, archived_data):
+    new_data = {k: v for k,v in parsed_data.items() if k != 'recorded_at'}
+    old_data = {k: v for k,v in archived_data.items() if k != 'recorded_at'}
 
-    return parsed_data == archived_data
+    return new_data != archived_data
 
 
 def notify():
@@ -239,19 +239,16 @@ def main():
     if has_diffs:
         cache_html(current_html)
 
-        parsed_data = [parse_html(current_html)]
+        parsed_data = parse_html(current_html)
         
         try:
             archived_data = get_archived_data()
         except S3_CLIENT.exceptions.NoSuchKey:    
-            has_new_data = True
-            data = [parse_html(current_html)]
+            new_data = True
+            data = [parsed_data]
         else:
-            if compare_archived(parsed_data, archived_data):
-                has_new_data = True
-                data = [parse_html(current_html)] + archived_data
-            else:
-                has_new_data = False
+            new_data = has_new_data(parsed_data, archived_data[0])
+            data = [parsed_data] + archived_data
 
         if new_data:
             archive_data(data)

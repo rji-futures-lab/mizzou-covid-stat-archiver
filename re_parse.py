@@ -4,6 +4,12 @@ from function import (
 )
 
 
+EXCLUDED = (
+    'cache/latest.html',
+    'cache/2020-09-17 15:36:09.587198.html',
+)
+
+
 def get_cached_keys():
     params = {
         'Bucket': PROJECT_NAME,
@@ -13,7 +19,7 @@ def get_cached_keys():
     objects = S3_CLIENT.list_objects_v2(**params)['Contents']
 
     return sorted(
-        [o['Key'] for o in objects if 'latest' not in o['Key']],
+        [o['Key'] for o in objects if o['Key'] not in EXCLUDED],
         reverse=True
     )
 

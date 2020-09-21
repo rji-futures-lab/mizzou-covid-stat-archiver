@@ -2,7 +2,11 @@ import re
 
 
 NET_CHANGES = re.compile(
-    r"\*(Net )?(C|c)hange in active cases from (?P<student_cases_change_since>(\w{6,9}\, [A-z]{3,4}\. \d{1,2})|\w+)\: (?P<student_cases_change>(\+|\-)?\d+((,\d+)+)?)\."
+    r"\*(Net )?(C|c)hange in active cases [a-z]+ (?P<student_cases_change_since>(\w{6,9}\, [A-z]{3,4}\. \d{1,2})|\w+)\: (?P<student_cases_change>(\+|\-|([A-Z]+ ))?\d+((,\d+)+)?)\."
+    )
+
+BOONE_COUNTY_TOTAL = re.compile(
+    r"are part of (?P<student_cases_boone_county>\d+((,\d+)+)?) student cases that have been reported in Boone County since Aug\. 19, 2020"
     )
 
 BOONE_COUNTY = re.compile(
@@ -18,17 +22,25 @@ LAST_UPDATE = re.compile(
 )
 
 
-def parse_from_pattern(text, pattern, alt_pattern=None):
-    if alt_pattern:
-        match = pattern.search(text) or alt_pattern.search(text)
+def parse_from_pattern(text, pattern, alt_patterns=None):
+    if alt_patterns:
+        match = pattern.search(text)
+        if not match:
+            for p in alt_patterns:
+                match = p.search(text)
+                if match:
+                    break
+                    print('hi')
     else:
         match = pattern.search(text)
 
+    keys = [k for k in pattern.groupindex.keys()]
+    missing_data = {k: None for k in keys}
+    
     if match:
-        data = match.groupdict()
+        data = {**missing_data, **match.groupdict()}
     else:
-        keys = [k for k in pattern.groupindex.keys()]
-        data = {k: None for k in keys}
+        data = missing_data
 
     return data
 
@@ -36,6 +48,8 @@ def parse_from_pattern(text, pattern, alt_pattern=None):
 def parse(text):
     return {
         **parse_from_pattern(text, NET_CHANGES),
-        **parse_from_pattern(text, BOONE_COUNTY, alt_pattern=BOONE_COUNTY_OLD),
+        **parse_from_pattern(
+            text, BOONE_COUNTY, alt_patterns=[BOONE_COUNTY_OLD, BOONE_COUNTY_TOTAL]
+            ),
         **parse_from_pattern(text, LAST_UPDATE)
     }

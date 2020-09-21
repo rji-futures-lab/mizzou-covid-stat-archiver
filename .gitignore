@@ -5,3 +5,4 @@ function.json
 __pycache__/
 .python-version
 cache/
+data.csv
